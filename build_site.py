@@ -373,7 +373,11 @@ def read_recipes(conn: sqlite3.Connection, ext_dir: Path, out: Path) -> list[dic
         rid = str(s.col(r, "ZID") or f"pk{r['Z_PK']}")
         slug = slugify(title)
         if slug in used:
-            slug = f"{slug}-{hashlib.sha1(rid.encode()).hexdigest()[:6]}"
+            base = slug
+            slug = f"{base}-{hashlib.sha1(rid.encode()).hexdigest()[:6]}"
+            if slug in used:  # Mela can hold duplicate copies that share one ZID
+                key = rid + "#" + str(r["Z_PK"])
+                slug = base + "-" + hashlib.sha1(key.encode()).hexdigest()[:6]
         used.add(slug)
         date = s.col(r, "ZDATE")
         recipes.append({
