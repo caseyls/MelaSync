@@ -409,7 +409,6 @@ ICONS = {
     "people": '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/>'
               '<path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/>',
     "play": '<circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z" fill="currentColor"/>',
-    "bag": '<path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
     "sliders": '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
     "tray": '<path d="M3 13l3-8h12l3 8v6H3z"/><path d="M3 13h5l1 2h6l1-2h5"/>',
     "recent": '<path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.5"/><path d="M3.5 3.5v5h5"/><path d="M12 8v4l3 2"/>',
@@ -422,8 +421,6 @@ ICONS = {
     "x": '<path d="M6 6l12 12M18 6L6 18"/>',
     "list": '<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r=".6"/><circle cx="4.5" cy="12" r=".6"/>'
             '<circle cx="4.5" cy="18" r=".6"/>',
-    "check": '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
-    "trash": '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
 }
 SPRITE = ('<svg width="0" height="0" style="position:absolute" aria-hidden="true">'
           + "".join(f'<symbol id="i-{k}" viewBox="0 0 24 24">{v}</symbol>' for k, v in ICONS.items()) + "</svg>")
@@ -547,8 +544,6 @@ def render_article(r: dict) -> str:
         acts.append(f'<button class=act data-act=cook title="Start cooking mode: one step at a time, screen stays on">'
                     f'{ic("play")}<span>Cook</span></button>')
     if ings:
-        acts.append(f'<button class=act data-act=groc title="Add these ingredients to your grocery list">'
-                    f'{ic("bag")}<span>Groceries</span></button>')
         acts.append(f'<button class=act data-act=adjust aria-expanded=false title="Scale the ingredient amounts">'
                     f'{ic("sliders")}<span>Adjust</span></button>')
     adjust = ('<div class=adjust hidden><input type=range min=0.5 max=4 step=0.5 value=1 aria-label="Scale" '
@@ -613,7 +608,6 @@ def render_index(recipes: list[dict]) -> str:
 <div class=shell>
 <nav class=side aria-label="Collections"><h1 class=serif>{E(SITE_TITLE)}</h1>
 <ul class=cats>{''.join(side)}</ul>
-<ul class="cats gside"><li><button data-v=groc title="Open your grocery list (kept on this device)">{ic('bag')}<span>Groceries</span></button></li></ul>
 <p class=status><span id=offline>Saving for offline…</span><br>Updated {time.strftime('%b %-d, %H:%M')}</p>
 </nav>
 <section class=list>
@@ -626,12 +620,7 @@ def render_index(recipes: list[dict]) -> str:
 <ul id=list class=rows></ul><p id=empty class=gempty hidden>{ic('search')}</p>
 </section>
 <section class=dpane id=dpane></section>
-<section class=groc>
-<header class=gh><h2 class=serif>Groceries</h2><button id=gclear class=ib title="Remove the checked items" hidden>{ic('trash')}</button></header>
-<ul id=glist class=glist></ul><p id=gempty class=gempty>{ic('bag')}</p>
-</section>
 </div>
-<nav class=tabs><button data-v=list title="Browse your recipes">{ic('tray')}<span>Recipes</span></button><button data-v=groc title="Open your grocery list">{ic('bag')}<span>Groceries</span></button></nav>
 <script>window.RECIPES={js};</script>
 <script src="/recipe.js?v={{V}}" defer></script><script src="/index.js?v={{V}}" defer></script><script src="/register.js?v={{V}}" defer></script>
 </body></html>"""
@@ -656,15 +645,14 @@ stroke-linejoin:round;vertical-align:-.2em}
 .gempty{color:var(--mute);text-align:center;padding:56px 0;font-size:2.2rem;opacity:.5}
 
 /* ---------- app shell: phone */
-.app .side,.app .list,.app .groc{display:none;padding:calc(env(safe-area-inset-top) + 8px) 16px calc(84px + env(safe-area-inset-bottom))}
-body[data-view=cats] .side,body[data-view=list] .list,body[data-view=groc] .groc{display:block}
+.app .side,.app .list{display:none;padding:calc(env(safe-area-inset-top) + 8px) 16px calc(24px + env(safe-area-inset-bottom))}
+body[data-view=cats] .side,body[data-view=list] .list{display:block}
 .dpane{display:none}
-.side h1,.gh h2,#ltitle{font-family:var(--serif);font-weight:700;font-size:2.1rem;line-height:1.1;margin:6px 0 12px}
+.side h1,#ltitle{font-family:var(--serif);font-weight:700;font-size:2.1rem;line-height:1.1;margin:6px 0 12px}
 .cats{list-style:none;margin:0 0 20px;padding:0}
 .cats button{display:flex;align-items:center;gap:12px;width:100%;padding:12px 2px;border-bottom:1px solid var(--line);text-align:left}
 .cats .ic{color:var(--accent)}.cats .n{margin-left:auto;color:var(--mute);font-size:.85rem}
 .cats .sub button{padding-left:30px}
-.gside{display:none}
 .status{color:var(--mute);font-size:.75rem;line-height:1.5}
 .lh{display:flex;flex-wrap:wrap;align-items:center}
 .back{display:flex;align-items:center;gap:2px;color:var(--accent);padding:8px 8px 8px 0;margin-left:-6px}
@@ -683,31 +671,19 @@ margin:0 0 6px;color:var(--mute);cursor:text}
 .rm span{display:inline-flex;align-items:center;gap:3px}
 .rm span+span{margin-left:6px;padding-left:6px;border-left:1px solid var(--line)}
 .rd{font-size:.78rem;color:var(--mute);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.35}
-.tabs{position:fixed;left:0;right:0;bottom:0;z-index:10;display:flex;justify-content:space-around;
-background:color-mix(in srgb,var(--bg) 85%,transparent);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);
-border-top:1px solid var(--line);padding:6px 0 calc(4px + env(safe-area-inset-bottom))}
-.tabs button{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.62rem;color:var(--mute);min-width:96px;padding:4px}
-.tabs .ic{width:1.6em;height:1.6em}.tabs button[aria-current=true]{color:var(--accent)}
-.gh{display:flex;align-items:center;justify-content:space-between}
-.glist{list-style:none;margin:0;padding:0}
-.glist li{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer}
-.circ{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--mute);flex:none;display:grid;place-items:center;color:#fff}
-.circ .ic{width:14px;height:14px;stroke-width:3}
-.got .circ{background:var(--accent);border-color:var(--accent)}.got .gt{color:var(--mute);text-decoration:line-through}
-.gt small{display:block;color:var(--accent);font-size:.78rem}
 
 /* ---------- app shell: Mac-style three panes */
 @media (min-width:900px){
 html{font-size:15px}
 body.app{height:100vh;overflow:hidden}
 .app .shell{display:flex;height:100vh}
-.app .side,.app .list,.app .groc,.app .dpane{display:block;height:100vh;overflow-y:auto;padding:0}
+.app .side,.app .list,.app .dpane{display:block;height:100vh;overflow-y:auto;padding:0}
 .app .side{width:230px;flex:none;background:var(--side);border-right:1px solid var(--line);padding:22px 10px 16px}
 body.noside .app .side,body.noside .side{display:none}
 .side h1{font-size:2rem;margin:4px 10px 14px}
 .cats{margin-bottom:18px}.cats button{border:0;border-radius:7px;padding:6px 10px;gap:9px;font-size:.93rem}
 .cats .sub button{padding-left:32px}.cats button[aria-current=true]{background:var(--sel)}
-.gside{display:block}.status{padding:0 10px}
+.status{padding:0 10px}
 .app .list{width:350px;flex:none;border-right:1px solid var(--line)}
 .lh{position:sticky;top:0;z-index:2;flex-wrap:nowrap;gap:6px;background:color-mix(in srgb,var(--bg) 88%,transparent);
 -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);padding:10px 10px 10px 8px;border-bottom:1px solid var(--line)}
@@ -723,10 +699,6 @@ body.noside .app .side,body.noside .side{display:none}
 .rows li:has(.row[aria-current=true])+li .row{box-shadow:none}
 .row[aria-current=true] .rd{color:rgba(255,255,255,.85)}.row[aria-current=true] .rm span+span{border-color:rgba(255,255,255,.4)}
 .app .dpane{flex:1;min-width:0}
-.tabs{display:none}
-body[data-view=groc] .list,body[data-view=groc] .dpane{display:none}
-body[data-view=list] .groc,body[data-view=cats] .groc{display:none}
-.app .groc{flex:1;padding:30px 48px}.glist{max-width:620px}
 }
 
 /* ---------- recipe (standalone phone page and the desktop detail pane) */
@@ -745,7 +717,7 @@ body[data-view=list] .groc,body[data-view=cats] .groc{display:none}
 .acts{display:flex;flex-wrap:wrap;margin:4px 0 16px;font-size:.82rem}
 .act{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-left:1px solid var(--line);font-weight:500}
 .act:first-child{padding-left:0;border-left:0}.act .ic{color:var(--accent);width:1.25em;height:1.25em}
-.act[aria-expanded=true],.act.ok{color:var(--accent)}
+.act[aria-expanded=true]{color:var(--accent)}
 .adjust{display:flex;align-items:center;gap:12px;margin:-6px 0 16px;padding:8px 14px;border-radius:12px;background:var(--side);max-width:340px}
 .adjust[hidden]{display:none}.adjust input{flex:1;accent-color:var(--accent)}
 .adjust output{font-weight:600;min-width:2.4em;text-align:right}
@@ -830,12 +802,10 @@ function render(){
  $('lcount').textContent=shown.length+(shown.length===1?' recipe':' recipes');
  marks();save()}
 function marks(){
- document.querySelectorAll('.side [data-c]').forEach(b=>b.setAttribute('aria-current',st.v!=='groc'&&b.dataset.c===st.c));
- document.querySelectorAll('.side [data-v]').forEach(b=>b.setAttribute('aria-current',st.v==='groc'));
- document.querySelectorAll('.tabs [data-v]').forEach(b=>b.setAttribute('aria-current',(st.v==='groc')===(b.dataset.v==='groc')))}
+ document.querySelectorAll('.side [data-c]').forEach(b=>b.setAttribute('aria-current',b.dataset.c===st.c))}
 function view(v){
- if(wide.matches&&v==='cats')v='list';
- const changed=st.v!==v;st.v=v;body.dataset.view=v;if(v==='groc')groc();marks();save();
+ if(wide.matches||v!=='cats')v='list';
+ const changed=st.v!==v;st.v=v;body.dataset.view=v;save();
  if(changed&&!wide.matches)scrollTo(0,0)}
 async function open(s){
  st.sel=s;save();history.replaceState(null,'','#r='+s);
@@ -849,23 +819,10 @@ async function open(s){
  if(window.MelaRecipe)MelaRecipe(pane.querySelector('.rx'))}
 function firstOpen(){if(!wide.matches||pane.firstChild)return;
  const s=R.some(r=>r.s===st.sel)?st.sel:shown[0]&&shown[0].s;if(s)open(s)}
-// groceries (kept in this browser only)
-const gload=()=>{try{return JSON.parse(localStorage.getItem('groc')||'[]')}catch(e){return[]}};
-const gsave=L=>{try{localStorage.setItem('groc',JSON.stringify(L))}catch(e){}};
-function groc(){const L=gload();
- $('glist').innerHTML=L.map((x,i)=>'<li data-g="'+i+'"'+(x.g?' class=got':'')+' title="'+(x.g?'Mark as still needed':'Mark as bought')+'"><span class=circ>'+
-  (x.g?ic('check'):'')+'</span><span class=gt>'+esc(x.n)+(x.q?'<small>'+esc(x.q)+'</small>':'')+'</span></li>').join('');
- $('gempty').hidden=L.length>0;$('gclear').hidden=!L.some(x=>x.g)}
-$('glist').addEventListener('click',e=>{const li=e.target.closest('li');if(!li)return;const L=gload(),x=L[+li.dataset.g];
- if(x){x.g=x.g?0:1;gsave(L);groc()}});
-$('gclear').addEventListener('click',()=>{gsave(gload().filter(x=>!x.g));groc()});
-addEventListener('groc',groc);addEventListener('storage',e=>{if(e.key==='groc')groc()});
+try{localStorage.removeItem('groc')}catch(e){}  // drop the old on-device grocery list
 // wiring
 document.querySelector('.side').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
- if(b.dataset.v){view(b.dataset.v);return}
  st.c=b.dataset.c;view('list');render();if(wide.matches)document.querySelector('.list').scrollTop=0;firstOpen()});
-document.querySelector('.tabs').addEventListener('click',e=>{const b=e.target.closest('button');
- if(b)view(b.dataset.v==='list'&&st.v==='list'?'cats':b.dataset.v)});
 $('to-cats').addEventListener('click',()=>view('cats'));
 const tog=$('side-tog');
 function sideTitle(){tog.title=body.classList.contains('noside')?'Show sidebar':'Hide sidebar'}
@@ -876,7 +833,7 @@ q.addEventListener('input',()=>{st.q=q.value;render()});
 list.addEventListener('click',e=>{const a=e.target.closest('.row');
  if(!a||!wide.matches||e.metaKey||e.ctrlKey||e.shiftKey)return;e.preventDefault();open(a.dataset.s)});
 document.addEventListener('keydown',e=>{
- if(!wide.matches||document.querySelector('.cook')||st.v==='groc')return;
+ if(!wide.matches||document.querySelector('.cook'))return;
  if(e.key==='/'&&document.activeElement!==q){e.preventDefault();q.focus();return}
  if(e.key!=='ArrowDown'&&e.key!=='ArrowUp')return;
  if(e.target.tagName==='INPUT'&&e.target!==q)return;
@@ -914,23 +871,12 @@ function init(a){
  if(range)range.addEventListener('input',()=>{f=+range.value;out.textContent='×'+fmt(f);
   a.querySelectorAll('.n[data-q]').forEach(n=>{n.textContent=f===1?n.dataset.o:
    fmt(+n.dataset.q*f)+(n.dataset.q2?'–'+fmt(+n.dataset.q2*f):'')})});
- function addGroc(b){
-  let L=[];try{L=JSON.parse(localStorage.getItem('groc')||'[]')}catch(e){}
-  const r=a.querySelector('.title').textContent;
-  a.querySelectorAll('.ingredients .ing li').forEach(li=>{
-   const q=li.querySelector('.q'),qt=q?q.textContent.trim():'',n=(q?li.textContent.slice(q.textContent.length):li.textContent).trim();
-   if(n&&!L.some(x=>x.n===n&&x.q===qt&&x.r===r))L.push({n:n,q:qt,r:r,g:0})});
-  try{localStorage.setItem('groc',JSON.stringify(L))}catch(e){}
-  dispatchEvent(new Event('groc'));
-  const use=b.querySelector('use'),lab=b.querySelector('span');b.classList.add('ok');use.setAttribute('href','#i-check');lab.textContent='Added';
-  clearTimeout(b._t);b._t=setTimeout(()=>{b.classList.remove('ok');use.setAttribute('href','#i-bag');lab.textContent='Groceries'},1800)}
  a.addEventListener('click',e=>{
   if(e.target.closest('a'))return;
   const li=e.target.closest('.ing li');if(li){toggle(li.dataset.i);return}
   const sl=e.target.closest('.steps li');if(sl){st.s=st.s===+sl.dataset.s?0:+sl.dataset.s;save();paint();return}
   const b=e.target.closest('[data-act]');if(!b)return;
   if(b.dataset.act==='cook')openCook();
-  else if(b.dataset.act==='groc')addGroc(b);
   else if(b.dataset.act==='adjust'){const p=a.querySelector('.adjust');p.hidden=!p.hidden;b.setAttribute('aria-expanded',String(!p.hidden));
    b.title=p.hidden?'Scale the ingredient amounts':'Hide the scaling slider'}});
  // ---- cooking mode
