@@ -93,7 +93,7 @@ Either Mac can sync at any time, and the last upload wins. Both Macs read the sa
 1. Open `https://<project>.pages.dev` in Chrome and enter the password. You stay signed in for a year.
 2. Chrome menu ⋮ → **Add to Home screen**. The site opens like an app.
 3. Open the index once while online. The footer counts photos as they download, then says **Available offline**. After that, every recipe and photo opens with no signal.
-4. Recipe pages keep the screen on while visible. The ☀︎ button in the top bar shows the state; tap it to turn it off. Tap ingredients to tick them off and tap steps to mark them done; the next step is highlighted. A−/A+ changes the text size, and your choice is remembered.
+4. The site follows Mela's iPhone layout: a Recipes tab (tap ‹ Recipes for categories) and a Groceries tab. On a recipe, **Cook** opens cooking mode (one step at a time, screen stays on; the round button shows ingredients), **Groceries** adds the ingredients to your list (kept on that phone), and **Adjust** scales the amounts. Tap ingredients to fade them out and tap a step to mark your place.
 
 Each sync uploads a new version. Pages load fresh whenever the phone is online, and cached copies are used when it's offline.
 

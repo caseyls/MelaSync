@@ -402,24 +402,107 @@ ICON_SVG = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect w
             'fill="#c2410c"/><path d="M12 30h40a20 20 0 0 1-40 0z" fill="#fff"/><path d="M26 22c0-4 4-4 4-8m6 8c0-4 '
             '4-4 4-8" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round"/></svg>')
 
+ICONS = {
+    "clock": '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    "tag": '<path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="7.5" cy="7.5" r="1.4"/>',
+    "book": '<path d="M5 4h11a3 3 0 0 1 3 3v13H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h11"/>',
+    "people": '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/>'
+              '<path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/>',
+    "play": '<circle cx="12" cy="12" r="9"/><path d="M10 8.5l5 3.5-5 3.5z" fill="currentColor"/>',
+    "bag": '<path d="M5 8h14l-1 12H6z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
+    "sliders": '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
+    "tray": '<path d="M3 13l3-8h12l3 8v6H3z"/><path d="M3 13h5l1 2h6l1-2h5"/>',
+    "recent": '<path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.5"/><path d="M3.5 3.5v5h5"/><path d="M12 8v4l3 2"/>',
+    "want": '<circle cx="12" cy="12" r="9"/><path d="M8 12h8M12.5 8.5L16 12l-3.5 3.5"/>',
+    "heart": '<path d="M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.3 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10z"/>',
+    "folder": '<path d="M3 6h6l2 2h10v11H3z"/>',
+    "search": '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/>',
+    "sidebar": '<rect x="3" y="4.5" width="18" height="15" rx="2"/><path d="M9 4.5v15"/>',
+    "back": '<path d="M15 5l-7 7 7 7"/>',
+    "x": '<path d="M6 6l12 12M18 6L6 18"/>',
+    "list": '<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r=".6"/><circle cx="4.5" cy="12" r=".6"/>'
+            '<circle cx="4.5" cy="18" r=".6"/>',
+    "check": '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+    "trash": '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
+}
+SPRITE = ('<svg width="0" height="0" style="position:absolute" aria-hidden="true">'
+          + "".join(f'<symbol id="i-{k}" viewBox="0 0 24 24">{v}</symbol>' for k, v in ICONS.items()) + "</svg>")
 
-def head(title: str, depth: str, extra: str = "") -> str:
+
+def ic(name: str) -> str:
+    return f'<svg class=ic aria-hidden=true><use href="#i-{name}"/></svg>'
+
+
+def head(title: str, extra: str = "") -> str:
     return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="robots" content="noindex,nofollow"><meta name="theme-color" content="#c2410c">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#1c1c1e" media="(prefers-color-scheme: dark)">
 <title>{E(title)}</title><link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/icon.svg"><link rel="apple-touch-icon" href="/icon-192.png">
 <link rel="stylesheet" href="/style.css?v={{V}}">{extra}
-<script>try{{var f=localStorage.getItem('fs');if(f)document.documentElement.style.fontSize=f}}catch(e){{}}</script>
 </head>"""
 
 
-def meta_bits(r: dict) -> list[tuple[str, str]]:
-    return [(k, str(r[f]).strip()) for k, f in (("Serves", "yield"), ("Prep", "prep"), ("Cook", "cook"),
-                                                ("Total", "total")) if r[f] and str(r[f]).strip()]
+def host_of(link: str | None) -> str:
+    link = (link or "").strip()
+    if not link.startswith(("http://", "https://")):
+        return ""
+    return re.sub(r"^www\.", "", re.sub(r"^https?://([^/]+).*", r"\1", link))
 
 
-def render_recipe(r: dict) -> str:
+def snippet(text: str | None) -> str:
+    t = _LINK.sub(r"\1", text or "")
+    t = re.sub(r"[*_#>`]", "", t)
+    return re.sub(r"\s+", " ", t).strip()[:160]
+
+
+# Leading amount + unit of an ingredient line, e.g. "1 1/2 cups", "500g", "2-3 tbsp", "½".
+_FR = {"½": .5, "⅓": 1 / 3, "⅔": 2 / 3, "¼": .25, "¾": .75, "⅛": .125}
+_NUM = r"(?:\d+\s+\d+/\d+|\d+/\d+|\d+(?:[.,]\d+)?(?:\s*[½⅓⅔¼¾⅛])?|[½⅓⅔¼¾⅛])"
+_UNITS = ("g|gr|grams?|kg|kilos?|kilograms?|mg|ml|millilit(?:er|re)s?|cl|dl|l|lit(?:er|re)s?|oz|ounces?|lbs?|"
+          "pounds?|cups?|c|tbsp|tbs|tablespoons?|tsp|teaspoons?|quarts?|qt|pints?|pt|cans?|tins?|jars?|cloves?|"
+          "pinch(?:es)?|dash(?:es)?|handfuls?|slices?|sprigs?|bunch(?:es)?|sticks?|heads?|stalks?|packages?|pkg|"
+          "packets?|sheets?|knobs?")
+_QTY = re.compile(rf"^({_NUM})(?:\s*(?:-|–|to)\s*({_NUM}))?(\s*(?:{_UNITS})\.?(?!\w))?", re.I)
+
+
+def _num(s: str) -> float:
+    s = s.strip().replace(",", ".")
+    v = 0.0
+    if s and s[-1] in _FR:
+        v += _FR[s[-1]]
+        s = s[:-1].strip()
+    for part in s.split():
+        if "/" in part:
+            a, b = part.split("/")
+            v += float(a) / float(b) if float(b) else 0
+        else:
+            v += float(part)
+    return v
+
+
+def amount(text: str) -> tuple[str, str]:
+    """Split an ingredient/yield line into (amount HTML, rest of the line, unescaped)."""
+    m = _QTY.match(text)
+    if not m:
+        return "", text
+    try:
+        q1, q2 = _num(m[1]), (_num(m[2]) if m[2] else None)
+    except (ValueError, ZeroDivisionError):
+        return "", text
+    end = m.end(2) if m[2] else m.end(1)
+    d2 = f' data-q2="{q2:g}"' if q2 is not None else ""
+    return (f'<span class=n data-q="{q1:g}"{d2}>{E(text[:end])}</span>{E(m[3] or "")}', text[m.end():])
+
+
+def ing_item(n: int, t: str) -> str:
+    q, rest = amount(t)
+    return f'<li data-i="{n}">' + (f"<b class=q>{q}</b>" if q else "") + f"{inline(rest)}</li>"
+
+
+def render_article(r: dict) -> str:
     def grouped(block, tag, cls, item):
         """'#' headers split the list into groups; returns HTML or '' if there are no items."""
         out, cur, n = [], [], 0
@@ -436,45 +519,66 @@ def render_recipe(r: dict) -> str:
             out.append(f"<{tag} class={cls}>{''.join(cur)}</{tag}>")
         return "".join(out) if n else ""
 
-    ings = grouped(r["ingredients"], "ul", "ing",
-                   lambda n, t: f'<li data-i="{n}"><span class=box></span><span>{inline(t)}</span></li>')
+    ings = grouped(r["ingredients"], "ul", "ing", ing_item)
     steps = grouped(r["instructions"], "ol", "steps",
-                    lambda n, t: f'<li data-s="{n}"><span class=num>{n}</span><div>{inline(t)}</div></li>')
+                    lambda n, t: f'<li data-s="{n}"><span class=num>{n}</span> {inline(t)}</li>')
     imgs = r["images"]
-    hero = (f'<img class=hero src="/img/{imgs[0]}.jpg" alt="" decoding="async">' if imgs else "")
+    hero = f'<img class=hero src="/img/{imgs[0]}.jpg" alt="" decoding="async">' if imgs else ""
     more = "".join(f'<img src="/img/{h}.jpg" alt="" loading="lazy" decoding="async">' for h in imgs[1:])
-    meta = "".join(f"<div><dt>{k}</dt><dd>{E(v)}</dd></div>" for k, v in meta_bits(r))
-    tags = "".join(f'<a class=tag href="/#c={E(t)}">{E(t)}</a>' for t in r["tags"])
-    link = (r["link"] or "").strip()
-    if link.startswith(("http://", "https://")):
-        host = re.sub(r"^www\.", "", re.sub(r"^https?://([^/]+).*", r"\1", link))
-        src = f'<p class=src>Source: <a href="{E(link)}" rel="noreferrer" target="_blank">{E(host)}</a></p>'
-    else:
-        src = f"<p class=src>Source: {E(link)}</p>" if link else ""
+
+    facts = []
+    link, host = (r["link"] or "").strip(), host_of(r["link"])
+    if host:
+        facts.append(f'<a class=fact href="{E(link)}" rel="noreferrer" target="_blank" '
+                     f'title="Open the original recipe on {E(host)}">{ic("book")}<span>{E(host)}</span></a>')
+    elif link:
+        facts.append(f'<span class=fact>{ic("book")}<span>{E(link)}</span></span>')
+    if r["yield"] and str(r["yield"]).strip():
+        q, rest = amount(str(r["yield"]).strip())
+        facts.append(f'<span class=fact>{ic("people")}<span>{q}{E(rest)}</span></span>')
+    times = [(lbl, str(r[f]).strip()) for lbl, f in (("Prep", "prep"), ("Cook", "cook"), ("Total", "total"))
+             if r[f] and str(r[f]).strip()]
+    if times:
+        facts.append(f'<span class=fact>{ic("clock")}'
+                     + "".join(f"<span class=t><b>{E(v)}</b><small>{k}</small></span>" for k, v in times) + "</span>")
+
+    acts = []
+    if steps:
+        acts.append(f'<button class=act data-act=cook title="Start cooking mode: one step at a time, screen stays on">'
+                    f'{ic("play")}<span>Cook</span></button>')
+    if ings:
+        acts.append(f'<button class=act data-act=groc title="Add these ingredients to your grocery list">'
+                    f'{ic("bag")}<span>Groceries</span></button>')
+        acts.append(f'<button class=act data-act=adjust aria-expanded=false title="Scale the ingredient amounts">'
+                    f'{ic("sliders")}<span>Adjust</span></button>')
+    adjust = ('<div class=adjust hidden><input type=range min=0.5 max=4 step=0.5 value=1 aria-label="Scale" '
+              'title="Drag to scale the ingredient amounts"><output>×1</output></div>') if ings else ""
+
     sec = lambda cls, title, body: f'<section class={cls}><h2>{title}</h2>{body}</section>' if body else ""  # noqa
     nutrition = "<br>".join(inline(l) for l in (r["nutrition"] or "").strip().split("\n")) if r["nutrition"] else ""
-    return head(r["title"], "../../") + f"""
-<body class=recipe data-slug="{E(r['slug'])}">
-<header class=bar><a class=back href="/" aria-label="All recipes">‹ Recipes</a>
-<span class=tools><button id=fsm aria-label="Smaller text">A−</button><button id=fsp aria-label="Larger text">A+</button>
-<button id=wake hidden aria-pressed=false title="Keep screen on">☀︎ <span>Screen on</span></button></span></header>
-<main>
-<article>
-{hero}
-<h1>{E(r['title'])}</h1>
-{'<dl class=meta>' + meta + '</dl>' if meta else ''}
-{'<div class=tags>' + tags + '</div>' if tags else ''}
+    return f"""<article class="rx{'' if hero else ' nohero'}" data-slug="{E(r['slug'])}">
+<div class=main>
+<header class=head>
+<h1 class=title>{E(r['title'])}</h1>
+{'<div class=facts>' + ''.join(facts) + '</div>' if facts else ''}
+{'<div class=acts>' + ''.join(acts) + '</div>' if acts else ''}{adjust}
 {('<div class=intro>' + paragraphs(r['text']) + '</div>') if r['text'] else ''}
-<div class=cols>
-{sec('ingredients', 'Ingredients', ings)}
-{sec('method', 'Steps', steps)}
-</div>
-<button id=reset class=reset hidden>Clear checkmarks</button>
+</header>
+<div class=method>{'<hr>' + steps if steps else ''}
 {sec('notes', 'Notes', paragraphs(r['notes']))}
 {sec('nutrition', 'Nutrition', ('<p>' + nutrition + '</p>') if nutrition else '')}
-{('<div class=gallery>' + more + '</div>') if more else ''}
-{src}
-</article></main>
+{('<div class=gallery>' + more + '</div>') if more else ''}</div>
+</div>
+<aside class=side2>{hero}{'<section class=ingredients>' + ings + '</section>' if ings else ''}</aside>
+</article>"""
+
+
+def render_recipe(r: dict) -> str:
+    to_app = f"<script>if(matchMedia('(min-width:900px)').matches)location.replace('/#r={r['slug']}')</script>"
+    return head(r["title"], to_app) + f"""
+<body class=recipe>{SPRITE}
+<a class=fab id=back href="/" title="Back to your recipes">{ic('back')}</a>
+<main class=detail>{render_article(r)}</main>
 <script src="/recipe.js?v={{V}}" defer></script><script src="/register.js?v={{V}}" defer></script>
 </body></html>"""
 
@@ -485,165 +589,392 @@ def render_index(recipes: list[dict]) -> str:
         for t in r["tags"]:
             cats[t] = cats.get(t, 0) + 1
     data = [{"s": r["slug"], "t": r["title"], "c": r["tags"], "f": int(r["fav"]), "w": int(r["want"]),
-             "d": int(r["date"]), "m": r["total"] or r["cook"] or "",
+             "d": int(r["date"]), "m": r["total"] or r["cook"] or "", "x": snippet(r["text"]), "h": host_of(r["link"]),
              "i": r["images"][0] if r["images"] else "",
              "q": fold(" ".join([r["title"], " ".join(r["tags"]), r["ingredients"] or ""]))} for r in recipes]
-    chips = ['<button class=chip data-c="" aria-pressed=true>All</button>']
-    if any(r["fav"] for r in recipes):
-        chips.append('<button class=chip data-c="★">★ Favorites</button>')
-    if any(r["want"] for r in recipes):
-        chips.append('<button class=chip data-c="⚑">Want to cook</button>')
-    chips += [f'<button class=chip data-c="{E(c)}">{E(c)} <small>{n}</small></button>'
-              for c, n in sorted(cats.items(), key=lambda kv: kv[0].lower())]
+
+    def cat(c, icon, label, n, tip, sub=False):
+        return (f'<li{" class=sub" if sub else ""}><button data-c="{E(c)}" title="{E(tip)}">{ic(icon)}'
+                f'<span>{E(label)}</span><span class=n>{n}</span></button></li>')
+    side = [cat("", "tray", "All", len(recipes), "Show every recipe")]
+    side += [cat(c, "tag", c, n, f"Show recipes in {c}", True) for c, n in sorted(cats.items(), key=lambda kv: kv[0].lower())]
+    side.append(cat("~recent", "recent", "Most Recent", len(recipes), "Show recipes, newest first"))
+    for key, icon, label, tip, n in (("~want", "want", "Want to Cook", "Show recipes marked Want to Cook",
+                                      sum(r["want"] for r in recipes)),
+                                     ("~fav", "heart", "Favorites", "Show your favorite recipes",
+                                      sum(r["fav"] for r in recipes)),
+                                     ("~none", "folder", "Uncategorized", "Show recipes without a category",
+                                      sum(not r["tags"] for r in recipes))):
+        if n:
+            side.append(cat(key, icon, label, n, tip))
     js = json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
-    return head(SITE_TITLE, "") + f"""
-<body class=index>
-<header class=top><h1>{E(SITE_TITLE)}</h1>
-<input id=q type=search placeholder="Search {len(recipes)} recipes or ingredients" autocomplete=off enterkeyhint=search aria-label="Search">
-<nav class=chips id=chips>{''.join(chips)}</nav>
-<div class=sortrow><span id=count></span><label>Sort <select id=sort><option value=a>A–Z</option><option value=n>Newest</option></select></label></div>
+    return head(SITE_TITLE) + f"""
+<body class=app data-view=list>{SPRITE}
+<div class=shell>
+<nav class=side aria-label="Collections"><h1 class=serif>{E(SITE_TITLE)}</h1>
+<ul class=cats>{''.join(side)}</ul>
+<ul class="cats gside"><li><button data-v=groc title="Open your grocery list (kept on this device)">{ic('bag')}<span>Groceries</span></button></li></ul>
+<p class=status><span id=offline>Saving for offline…</span><br>Updated {time.strftime('%b %-d, %H:%M')}</p>
+</nav>
+<section class=list>
+<header class=lh>
+<button id=to-cats class=back title="Show collections and categories">{ic('back')}<span>{E(SITE_TITLE)}</span></button>
+<button id=side-tog class=ib title="Hide sidebar">{ic('sidebar')}</button>
+<div class=lt><h2 id=ltitle>All</h2><small id=lcount></small></div>
+<label class=search>{ic('search')}<input id=q type=search placeholder="Search" autocomplete=off enterkeyhint=search aria-label="Search recipes" title="Search titles, categories and ingredients (/)"></label>
 </header>
-<main><ul id=list class=cards></ul><p id=empty hidden>No recipes match.</p></main>
-<footer><span id=offline>Saving for offline…</span> · updated <time>{time.strftime('%b %-d, %H:%M')}</time></footer>
+<ul id=list class=rows></ul><p id=empty class=gempty hidden>{ic('search')}</p>
+</section>
+<section class=dpane id=dpane></section>
+<section class=groc>
+<header class=gh><h2 class=serif>Groceries</h2><button id=gclear class=ib title="Remove the checked items" hidden>{ic('trash')}</button></header>
+<ul id=glist class=glist></ul><p id=gempty class=gempty>{ic('bag')}</p>
+</section>
+</div>
+<nav class=tabs><button data-v=list title="Browse your recipes">{ic('tray')}<span>Recipes</span></button><button data-v=groc title="Open your grocery list">{ic('bag')}<span>Groceries</span></button></nav>
 <script>window.RECIPES={js};</script>
-<script src="/index.js?v={{V}}" defer></script><script src="/register.js?v={{V}}" defer></script>
+<script src="/recipe.js?v={{V}}" defer></script><script src="/index.js?v={{V}}" defer></script><script src="/register.js?v={{V}}" defer></script>
 </body></html>"""
 
 
 CSS = r"""
-:root{--bg:#fbf8f4;--fg:#1f1a17;--mute:#6b625b;--line:#e7e0d8;--card:#fff;--accent:#c2410c;--accent-fg:#fff;
---done:#a39a92;--hi:#fff1e6;color-scheme:light dark}
-@media (prefers-color-scheme:dark){:root{--bg:#161311;--fg:#f3ede7;--mute:#a59b92;--line:#2e2824;--card:#201b18;
---accent:#fb923c;--accent-fg:#1a1006;--done:#6d645d;--hi:#33241a}}
-*{box-sizing:border-box}html{font-size:20px;-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--fg);font:1rem/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
-padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
-a{color:var(--accent)}button,input,select{font:inherit;color:inherit}
-main{max-width:1100px;margin:0 auto;padding:0 16px 40px}
-/* index */
-.top{position:sticky;top:0;z-index:5;background:var(--bg);padding:12px 16px 8px;border-bottom:1px solid var(--line);max-width:1100px;margin:0 auto}
-.top h1{font-size:1.4rem;margin:4px 0 10px}
-#q{width:100%;padding:.6em .8em;border:1.5px solid var(--line);border-radius:12px;background:var(--card);font-size:1.05rem}
-#q:focus{outline:none;border-color:var(--accent)}
-.chips{display:flex;gap:8px;overflow-x:auto;padding:10px 0 4px;scrollbar-width:none}.chips::-webkit-scrollbar{display:none}
-.chip{flex:none;border:1.5px solid var(--line);background:var(--card);border-radius:999px;padding:.3em .85em;font-size:.85rem;white-space:nowrap}
-.chip small{color:var(--mute)}.chip[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
-.chip[aria-pressed=true] small{color:inherit;opacity:.8}
-.sortrow{display:flex;justify-content:space-between;align-items:center;color:var(--mute);font-size:.8rem;padding-top:6px}
-.sortrow select{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:2px 6px;font-size:.8rem}
-.cards{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:10px;grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
-.cards a{display:flex;gap:12px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:14px;
-padding:8px;text-decoration:none;color:inherit;min-height:84px}
-.cards img,.cards .ph{width:76px;height:76px;flex:none;border-radius:10px;object-fit:cover;background:var(--line)}
-.cards .ph{display:grid;place-items:center;color:var(--mute);font-size:1.6rem}
-.cards b{display:block;font-weight:600;line-height:1.25}.cards small{color:var(--mute);font-size:.75rem}
-#empty{color:var(--mute);text-align:center;padding:40px 0}
-footer{color:var(--mute);font-size:.75rem;text-align:center;padding:0 16px 24px}
-/* recipe */
-.bar{position:sticky;top:0;z-index:5;display:flex;justify-content:space-between;align-items:center;gap:8px;
-background:var(--bg);border-bottom:1px solid var(--line);padding:6px 12px}
-.back{text-decoration:none;font-weight:600;padding:8px 4px;font-size:1rem}
-.tools{display:flex;gap:6px}.tools button{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:6px 10px;font-size:.8rem}
-#wake[aria-pressed=true]{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
-@media (max-width:420px){#wake span{display:none}}
-.hero{display:block;width:calc(100% + 32px);margin:0 -16px;max-height:52vh;object-fit:cover}
-article h1{font-size:1.75rem;line-height:1.15;margin:18px 0 10px}
-.meta{display:flex;flex-wrap:wrap;gap:6px 20px;margin:0 0 10px}.meta div{display:flex;gap:6px}
-.meta dt{color:var(--mute)}.meta dd{margin:0;font-weight:600}
-.tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
-.tag{font-size:.75rem;text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:2px 10px;color:var(--mute)}
-.intro{color:var(--mute)}
-h2{font-size:1.25rem;margin:26px 0 8px;padding-bottom:4px;border-bottom:2px solid var(--accent);display:inline-block}
-h3{font-size:1rem;margin:16px 0 4px;color:var(--accent)}
-.ing,.steps{list-style:none;margin:0;padding:0}
-.ing li{display:flex;gap:12px;align-items:flex-start;padding:10px 4px;border-bottom:1px solid var(--line);cursor:pointer;font-size:1.05rem}
-.box{flex:none;width:1.1em;height:1.1em;margin-top:.2em;border:2px solid var(--mute);border-radius:6px}
-.ing li.done{color:var(--done);text-decoration:line-through}.ing li.done .box{background:var(--done);border-color:var(--done)}
-.steps li{display:flex;gap:14px;padding:12px 8px;border-radius:12px;cursor:pointer;line-height:1.55;font-size:1.05rem}
-.num{flex:none;width:1.8em;height:1.8em;border-radius:50%;background:var(--accent);color:var(--accent-fg);
-display:grid;place-items:center;font-weight:700;font-size:.85rem;margin-top:.05em}
-.steps li.done{color:var(--done)}.steps li.done .num{background:var(--done)}
-.steps li.cur{background:var(--hi)}
-.reset{margin:16px 0 0;border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px 14px;font-size:.85rem}
-.notes p,.nutrition p{margin:.5em 0}
-.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin-top:24px}
-.gallery img{width:100%;border-radius:12px}.src{color:var(--mute);font-size:.85rem;margin-top:28px;word-break:break-word}
-@media (min-width:860px){.cols{display:grid;grid-template-columns:minmax(280px,2fr) 3fr;gap:40px;align-items:start}
-.ingredients{position:sticky;top:64px;max-height:calc(100vh - 80px);overflow:auto}
-.hero{width:100%;margin:16px 0 0;border-radius:16px;max-height:420px}}
+:root{--bg:#fff;--side:#f4f3f1;--soft:#f7f6f4;--fg:#1d1b1a;--fg2:#4a4643;--mute:#8b857f;--line:#e9e6e2;
+--accent:#d4614a;--accent-fg:#fff;--amber:#f2ac2b;--sel:color-mix(in srgb,var(--fg) 8%,transparent);
+--serif:"New York",ui-serif,"Iowan Old Style",Georgia,"Noto Serif",serif;color-scheme:light dark}
+@media (prefers-color-scheme:dark){:root{--bg:#1c1c1e;--side:#232325;--soft:#242426;--fg:#f2f1ef;--fg2:#c9c5c1;
+--mute:#9a958f;--line:#38383a;--accent:#ea7a62}}
+*{box-sizing:border-box}html{font-size:17px;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:1rem/1.45 -apple-system,system-ui,"Segoe UI",Roboto,sans-serif;
+-webkit-tap-highlight-color:transparent}
+a{color:var(--accent);text-decoration:none}button,input{font:inherit;color:inherit}
+button{background:none;border:0;padding:0;cursor:pointer}
+.ic{width:1.15em;height:1.15em;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;
+stroke-linejoin:round;vertical-align:-.2em}
+.serif,.title,.rt b{font-family:var(--serif);font-weight:700;letter-spacing:-.01em}
+.ib{display:inline-grid;place-items:center;min-width:40px;height:40px;border-radius:10px;color:var(--accent)}
+@media (hover:hover){.ib:hover{background:var(--sel)}}
+.gempty{color:var(--mute);text-align:center;padding:56px 0;font-size:2.2rem;opacity:.5}
+
+/* ---------- app shell: phone */
+.app .side,.app .list,.app .groc{display:none;padding:calc(env(safe-area-inset-top) + 8px) 16px calc(84px + env(safe-area-inset-bottom))}
+body[data-view=cats] .side,body[data-view=list] .list,body[data-view=groc] .groc{display:block}
+.dpane{display:none}
+.side h1,.gh h2,#ltitle{font-family:var(--serif);font-weight:700;font-size:2.1rem;line-height:1.1;margin:6px 0 12px}
+.cats{list-style:none;margin:0 0 20px;padding:0}
+.cats button{display:flex;align-items:center;gap:12px;width:100%;padding:12px 2px;border-bottom:1px solid var(--line);text-align:left}
+.cats .ic{color:var(--accent)}.cats .n{margin-left:auto;color:var(--mute);font-size:.85rem}
+.cats .sub button{padding-left:30px}
+.gside{display:none}
+.status{color:var(--mute);font-size:.75rem;line-height:1.5}
+.lh{display:flex;flex-wrap:wrap;align-items:center}
+.back{display:flex;align-items:center;gap:2px;color:var(--accent);padding:8px 8px 8px 0;margin-left:-6px}
+.back .ic{width:1.4em;height:1.4em}
+#side-tog,#lcount{display:none}.lt{flex-basis:100%}
+.search{flex-basis:100%;display:flex;align-items:center;gap:6px;background:var(--side);border-radius:10px;padding:0 10px;
+margin:0 0 6px;color:var(--mute);cursor:text}
+.search input{flex:1;min-width:0;border:0;background:none;padding:8px 0;outline:none;color:var(--fg)}
+.rows{list-style:none;margin:0;padding:0}
+.row{display:flex;gap:12px;padding:10px 0;color:inherit;border-bottom:1px solid var(--line)}
+.row img,.row .ph{width:78px;height:78px;border-radius:8px;object-fit:cover;flex:none;background:var(--side)}
+.rt{min-width:0;display:flex;flex-direction:column;gap:3px;padding-top:2px}
+.rt b{font-size:1rem;line-height:1.2}
+.rm{display:flex;align-items:center;font-size:.72rem;white-space:nowrap;overflow:hidden;
+-webkit-mask-image:linear-gradient(90deg,#000 85%,transparent);mask-image:linear-gradient(90deg,#000 85%,transparent)}
+.rm span{display:inline-flex;align-items:center;gap:3px}
+.rm span+span{margin-left:6px;padding-left:6px;border-left:1px solid var(--line)}
+.rd{font-size:.78rem;color:var(--mute);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.35}
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:10;display:flex;justify-content:space-around;
+background:color-mix(in srgb,var(--bg) 85%,transparent);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);
+border-top:1px solid var(--line);padding:6px 0 calc(4px + env(safe-area-inset-bottom))}
+.tabs button{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:.62rem;color:var(--mute);min-width:96px;padding:4px}
+.tabs .ic{width:1.6em;height:1.6em}.tabs button[aria-current=true]{color:var(--accent)}
+.gh{display:flex;align-items:center;justify-content:space-between}
+.glist{list-style:none;margin:0;padding:0}
+.glist li{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.circ{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--mute);flex:none;display:grid;place-items:center;color:#fff}
+.circ .ic{width:14px;height:14px;stroke-width:3}
+.got .circ{background:var(--accent);border-color:var(--accent)}.got .gt{color:var(--mute);text-decoration:line-through}
+.gt small{display:block;color:var(--accent);font-size:.78rem}
+
+/* ---------- app shell: Mac-style three panes */
+@media (min-width:900px){
+html{font-size:15px}
+body.app{height:100vh;overflow:hidden}
+.app .shell{display:flex;height:100vh}
+.app .side,.app .list,.app .groc,.app .dpane{display:block;height:100vh;overflow-y:auto;padding:0}
+.app .side{width:230px;flex:none;background:var(--side);border-right:1px solid var(--line);padding:22px 10px 16px}
+body.noside .app .side,body.noside .side{display:none}
+.side h1{font-size:2rem;margin:4px 10px 14px}
+.cats{margin-bottom:18px}.cats button{border:0;border-radius:7px;padding:6px 10px;gap:9px;font-size:.93rem}
+.cats .sub button{padding-left:32px}.cats button[aria-current=true]{background:var(--sel)}
+.gside{display:block}.status{padding:0 10px}
+.app .list{width:350px;flex:none;border-right:1px solid var(--line)}
+.lh{position:sticky;top:0;z-index:2;flex-wrap:nowrap;gap:6px;background:color-mix(in srgb,var(--bg) 88%,transparent);
+-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);padding:10px 10px 10px 8px;border-bottom:1px solid var(--line)}
+#to-cats{display:none}#side-tog{display:inline-grid;color:var(--mute)}
+.lt{flex:1;min-width:0;flex-basis:auto}
+#ltitle{font:600 .95rem/1.2 -apple-system,system-ui,sans-serif;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#lcount{display:block;font-size:.75rem;color:var(--mute)}
+.search{flex:0 1 150px;margin:0}.search input{padding:6px 0}
+.rows{padding:6px 8px 20px}
+.row{padding:8px;border-radius:9px;border:0}.row img,.row .ph{width:66px;height:66px}
+.rows li+li .row{box-shadow:0 -1px 0 var(--line)}
+.row[aria-current=true]{background:var(--accent);color:var(--accent-fg);box-shadow:none}
+.rows li:has(.row[aria-current=true])+li .row{box-shadow:none}
+.row[aria-current=true] .rd{color:rgba(255,255,255,.85)}.row[aria-current=true] .rm span+span{border-color:rgba(255,255,255,.4)}
+.app .dpane{flex:1;min-width:0}
+.tabs{display:none}
+body[data-view=groc] .list,body[data-view=groc] .dpane{display:none}
+body[data-view=list] .groc,body[data-view=cats] .groc{display:none}
+.app .groc{flex:1;padding:30px 48px}.glist{max-width:620px}
+}
+
+/* ---------- recipe (standalone phone page and the desktop detail pane) */
+.detail,.dpane{container-type:inline-size}
+.rx{display:flex;flex-direction:column}
+.rx .main,.rx .side2{display:contents}
+.hero{order:0;display:block;width:100%;aspect-ratio:4/3;max-height:62vh;object-fit:cover}
+.head{order:1;padding:20px 20px 0}.ingredients{order:2;padding:0 20px}.method{order:3;padding:0 20px 48px}
+.nohero .head{padding-top:calc(env(safe-area-inset-top) + 64px)}
+.title{font-size:2rem;line-height:1.12;margin:0 0 14px}
+.facts{display:flex;flex-wrap:wrap;align-items:center;row-gap:8px;font-size:.8rem;margin-bottom:12px;color:var(--fg)}
+.fact{display:inline-flex;align-items:center;gap:6px;padding:0 12px;border-left:1px solid var(--line);color:inherit}
+.fact:first-child{padding-left:0;border-left:0}
+.t{display:inline-flex;flex-direction:column;line-height:1.1}.t+.t{margin-left:10px;padding-left:10px;border-left:1px solid var(--line)}
+.t b{font-weight:600}.t small{font-size:.58rem;color:var(--mute);text-transform:uppercase;letter-spacing:.05em}
+.acts{display:flex;flex-wrap:wrap;margin:4px 0 16px;font-size:.82rem}
+.act{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-left:1px solid var(--line);font-weight:500}
+.act:first-child{padding-left:0;border-left:0}.act .ic{color:var(--accent);width:1.25em;height:1.25em}
+.act[aria-expanded=true],.act.ok{color:var(--accent)}
+.adjust{display:flex;align-items:center;gap:12px;margin:-6px 0 16px;padding:8px 14px;border-radius:12px;background:var(--side);max-width:340px}
+.adjust[hidden]{display:none}.adjust input{flex:1;accent-color:var(--accent)}
+.adjust output{font-weight:600;min-width:2.4em;text-align:right}
+.intro{color:var(--fg2)}.intro p{margin:0 0 .8em}
+.method hr{border:0;border-top:1px solid var(--line);width:45%;margin:22px auto 8px}
+.ingredients h3,.method h3{font-size:1rem;font-weight:700;margin:24px 0 6px}
+.ing{list-style:none;margin:10px 0;padding:0}
+.ing li{padding:5px 0;cursor:pointer;color:var(--fg2);line-height:1.4}
+.ing .q{color:var(--fg);font-weight:700}.ing li.done{opacity:.3}
+.steps{list-style:none;margin:0;padding:0}
+.steps li{padding:8px 10px;margin:0 -10px 8px;border-radius:10px;cursor:pointer;line-height:1.65;color:var(--fg2)}
+.num{color:var(--mute);font-size:.8em;margin-right:2px}
+.steps li.cur{background:color-mix(in srgb,var(--accent) 13%,transparent);color:var(--fg)}
+.notes h2,.nutrition h2{font-size:1rem;margin:28px 0 6px}.notes p,.nutrition p{margin:.4em 0;color:var(--fg2)}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-top:24px}
+.gallery img{width:100%;border-radius:10px}
+.fab{position:fixed;top:calc(env(safe-area-inset-top) + 10px);left:12px;z-index:20;width:38px;height:38px;border-radius:50%;
+display:grid;place-items:center;color:var(--fg);background:color-mix(in srgb,var(--bg) 72%,transparent);
+-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);box-shadow:0 1px 4px rgba(0,0,0,.18)}
+.fab .ic{width:1.3em;height:1.3em}
+@container (min-width:720px){
+.rx{display:grid;grid-template-columns:minmax(0,1fr) minmax(270px,35%);min-height:100vh}
+.rx .main{display:block;padding:46px 52px 64px;max-width:780px}
+.rx .side2{display:block;background:var(--soft);border-left:1px solid var(--line)}
+.head,.method,.nohero .head{padding:0}.ingredients{padding:18px 30px 40px}
+.hero{aspect-ratio:auto;max-height:none}.title{font-size:2.35rem}
+}
+
+/* ---------- cooking mode */
+.cook{position:fixed;inset:0;z-index:50;display:flex;background:var(--bg)}
+.cs{flex:1;overflow-y:auto;scroll-snap-type:y mandatory;padding:45vh 28px}
+.cs h3{max-width:680px;margin:0 auto 28px;color:var(--mute);font-size:.95rem}
+.cstep{max-width:680px;margin:0 auto 48px;font-size:1.5rem;line-height:1.5;font-weight:600;opacity:.2;cursor:pointer;scroll-snap-align:center}
+.cstep.on{opacity:1}.cstep .num{font-weight:400}
+.ci{width:38%;max-width:440px;overflow-y:auto;background:#2c2c2e;color:#f2f1ef;padding:44px 36px}
+.ci h3{color:#f2f1ef}.ci .ing li{color:#f2f1ef;font-size:1.15rem;padding:7px 0}.ci .q{color:var(--amber)}
+.cbtn{position:absolute;z-index:2;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;
+background:var(--side);color:var(--fg)}
+.cbtn.close{top:calc(env(safe-area-inset-top) + 12px);left:12px}
+.cbtn.ingt{bottom:calc(env(safe-area-inset-bottom) + 18px);right:18px;width:52px;height:52px;background:var(--accent);color:#fff}
+.cbtn.ingt .ic{width:1.4em;height:1.4em}
+@media (max-width:719px){
+.ci{position:absolute;left:0;right:0;bottom:0;width:auto;max-width:none;max-height:72vh;border-radius:18px 18px 0 0;
+padding:28px 24px calc(84px + env(safe-area-inset-bottom));transform:translateY(100%);transition:transform .25s ease}
+.cstep{font-size:1.3rem}.cs{padding:45vh 22px}
+.cook.sheet .ci{transform:none}
+}
+@media (min-width:720px){.cbtn.ingt{display:none}}
 """
 
 INDEX_JS = r"""
-(function(){
-var R=window.RECIPES,list=document.getElementById('list'),q=document.getElementById('q'),
-chips=document.getElementById('chips'),sortSel=document.getElementById('sort'),cnt=document.getElementById('count'),
-empty=document.getElementById('empty'),cat='',st={};
-function fold(s){return s.normalize('NFKD').replace(/[̀-ͯ]/g,'').toLowerCase()}
-function esc(s){return s.replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
-try{st=JSON.parse(sessionStorage.getItem('idx')||'{}')}catch(e){}
-var h=decodeURIComponent((location.hash.match(/c=([^&]*)/)||[])[1]||'');
-cat=h||st.c||'';q.value=st.q||'';sortSel.value=st.s||'a';
+(()=>{
+const R=window.RECIPES,$=id=>document.getElementById(id),body=document.body,wide=matchMedia('(min-width:900px)');
+const ic=n=>'<svg class=ic aria-hidden=true><use href="#i-'+n+'"/></svg>';
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fold=s=>s.normalize('NFKD').replace(/[̀-ͯ]/g,'').toLowerCase();
+const NAMES={'':'All','~recent':'Most Recent','~want':'Want to Cook','~fav':'Favorites','~none':'Uncategorized'};
+const q=$('q'),list=$('list'),pane=$('dpane'),cache={};
+let st={c:'',q:'',v:'list',y:0,sel:''},shown=[];
+try{Object.assign(st,JSON.parse(sessionStorage.getItem('idx')||'{}'))}catch(e){}
+const h=(location.hash.match(/r=([^&]+)/)||[])[1];if(h)st.sel=decodeURIComponent(h);
+q.value=st.q;
+function save(){try{sessionStorage.setItem('idx',JSON.stringify(st))}catch(e){}}
+function pick(){
+ const t=fold(st.q).split(/\s+/).filter(Boolean);
+ let rs=R.filter(r=>{
+  if(st.c==='~want'&&!r.w||st.c==='~fav'&&!r.f||st.c==='~none'&&r.c.length)return false;
+  if(st.c&&st.c[0]!=='~'&&r.c.indexOf(st.c)<0)return false;
+  return t.every(x=>r.q.includes(x))});
+ if(st.c==='~recent')rs=rs.slice().sort((a,b)=>b.d-a.d);
+ else if(t.length){const t0=t.join(' ');rs=rs.slice().sort((a,b)=>fold(b.t).includes(t0)-fold(a.t).includes(t0))}
+ return rs}
+function row(r){
+ const m=[];if(r.m)m.push(ic('clock')+esc(r.m));if(r.c[0])m.push(ic('tag')+esc(r.c[0]));if(r.h)m.push(ic('book')+esc(r.h));
+ return '<li><a class=row href="/r/'+r.s+'/" data-s="'+r.s+'"'+(wide.matches&&r.s===st.sel?' aria-current=true':'')+'>'+
+  (r.i?'<img src="/img/'+r.i+'-t.jpg" alt="" loading=lazy decoding=async>':'<span class=ph></span>')+
+  '<span class=rt><b>'+esc(r.t)+'</b>'+(m.length?'<span class=rm><span>'+m.join('</span><span>')+'</span></span>':'')+
+  (r.x?'<span class=rd>'+esc(r.x)+'</span>':'')+'</span></a></li>'}
 function render(){
- var terms=fold(q.value).split(/\s+/).filter(Boolean),out=[];
- var rs=R.filter(function(r){
-  if(cat==='★'&&!r.f)return false;if(cat==='⚑'&&!r.w)return false;
-  if(cat&&cat!=='★'&&cat!=='⚑'&&r.c.indexOf(cat)<0)return false;
-  return terms.every(function(t){return r.q.indexOf(t)>=0})});
- if(sortSel.value==='n')rs=rs.slice().sort(function(a,b){return b.d-a.d});
- else if(terms.length){var t0=terms.join(' ');rs=rs.slice().sort(function(a,b){
-   return (fold(b.t).indexOf(t0)>=0)-(fold(a.t).indexOf(t0)>=0)})}
- rs.forEach(function(r){out.push('<li><a href="/r/'+r.s+'/">'+(r.i?'<img src="/img/'+r.i+'-t.jpg" alt="" loading="lazy" decoding="async">':'<span class=ph>🍽</span>')+
-  '<span><b>'+esc(r.t)+'</b><small>'+esc([r.m].concat(r.c.slice(0,3)).filter(Boolean).join(' · '))+'</small></span></a></li>')});
- list.innerHTML=out.join('');empty.hidden=rs.length>0;
- cnt.textContent=rs.length+' of '+R.length;
- [].forEach.call(chips.children,function(b){b.setAttribute('aria-pressed',b.dataset.c===cat)});
- try{sessionStorage.setItem('idx',JSON.stringify({c:cat,q:q.value,s:sortSel.value}))}catch(e){}
-}
-q.addEventListener('input',render);sortSel.addEventListener('change',render);
-chips.addEventListener('click',function(e){var b=e.target.closest('.chip');if(!b)return;cat=b.dataset.c===cat?'':b.dataset.c;
- history.replaceState(null,'',cat?'#c='+encodeURIComponent(cat):location.pathname);render();scrollTo(0,0)});
-render();
-var act=chips.querySelector('[aria-pressed=true]');if(act&&act.scrollIntoView)act.scrollIntoView({inline:'center',block:'nearest'});
+ shown=pick();list.innerHTML=shown.map(row).join('');$('empty').hidden=shown.length>0;
+ $('ltitle').textContent=st.c in NAMES?NAMES[st.c]:st.c;
+ $('lcount').textContent=shown.length+(shown.length===1?' recipe':' recipes');
+ marks();save()}
+function marks(){
+ document.querySelectorAll('.side [data-c]').forEach(b=>b.setAttribute('aria-current',st.v!=='groc'&&b.dataset.c===st.c));
+ document.querySelectorAll('.side [data-v]').forEach(b=>b.setAttribute('aria-current',st.v==='groc'));
+ document.querySelectorAll('.tabs [data-v]').forEach(b=>b.setAttribute('aria-current',(st.v==='groc')===(b.dataset.v==='groc')))}
+function view(v){
+ if(wide.matches&&v==='cats')v='list';
+ const changed=st.v!==v;st.v=v;body.dataset.view=v;if(v==='groc')groc();marks();save();
+ if(changed&&!wide.matches)scrollTo(0,0)}
+async function open(s){
+ st.sel=s;save();history.replaceState(null,'','#r='+s);
+ list.querySelectorAll('.row[aria-current]').forEach(x=>x.removeAttribute('aria-current'));
+ const el=list.querySelector('.row[data-s="'+s+'"]');if(el){el.setAttribute('aria-current','true');el.scrollIntoView({block:'nearest'})}
+ let html=cache[s];
+ if(html==null){pane.style.opacity='.4';try{const d=new DOMParser().parseFromString(await (await fetch('/r/'+s+'/')).text(),'text/html');
+  const a=d.querySelector('.rx');html=cache[s]=a?a.outerHTML:''}catch(e){html=''}}
+ if(st.sel!==s)return;
+ pane.style.opacity='';pane.innerHTML=html||'<p class=gempty>'+ic('x')+'</p>';pane.scrollTop=0;
+ if(window.MelaRecipe)MelaRecipe(pane.querySelector('.rx'))}
+function firstOpen(){if(!wide.matches||pane.firstChild)return;
+ const s=R.some(r=>r.s===st.sel)?st.sel:shown[0]&&shown[0].s;if(s)open(s)}
+// groceries (kept in this browser only)
+const gload=()=>{try{return JSON.parse(localStorage.getItem('groc')||'[]')}catch(e){return[]}};
+const gsave=L=>{try{localStorage.setItem('groc',JSON.stringify(L))}catch(e){}};
+function groc(){const L=gload();
+ $('glist').innerHTML=L.map((x,i)=>'<li data-g="'+i+'"'+(x.g?' class=got':'')+' title="'+(x.g?'Mark as still needed':'Mark as bought')+'"><span class=circ>'+
+  (x.g?ic('check'):'')+'</span><span class=gt>'+esc(x.n)+(x.q?'<small>'+esc(x.q)+'</small>':'')+'</span></li>').join('');
+ $('gempty').hidden=L.length>0;$('gclear').hidden=!L.some(x=>x.g)}
+$('glist').addEventListener('click',e=>{const li=e.target.closest('li');if(!li)return;const L=gload(),x=L[+li.dataset.g];
+ if(x){x.g=x.g?0:1;gsave(L);groc()}});
+$('gclear').addEventListener('click',()=>{gsave(gload().filter(x=>!x.g));groc()});
+addEventListener('groc',groc);addEventListener('storage',e=>{if(e.key==='groc')groc()});
+// wiring
+document.querySelector('.side').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+ if(b.dataset.v){view(b.dataset.v);return}
+ st.c=b.dataset.c;view('list');render();if(wide.matches)document.querySelector('.list').scrollTop=0;firstOpen()});
+document.querySelector('.tabs').addEventListener('click',e=>{const b=e.target.closest('button');
+ if(b)view(b.dataset.v==='list'&&st.v==='list'?'cats':b.dataset.v)});
+$('to-cats').addEventListener('click',()=>view('cats'));
+const tog=$('side-tog');
+function sideTitle(){tog.title=body.classList.contains('noside')?'Show sidebar':'Hide sidebar'}
+try{if(localStorage.getItem('noside'))body.classList.add('noside')}catch(e){}sideTitle();
+tog.addEventListener('click',()=>{const n=body.classList.toggle('noside');sideTitle();
+ try{n?localStorage.setItem('noside','1'):localStorage.removeItem('noside')}catch(e){}});
+q.addEventListener('input',()=>{st.q=q.value;render()});
+list.addEventListener('click',e=>{const a=e.target.closest('.row');
+ if(!a||!wide.matches||e.metaKey||e.ctrlKey||e.shiftKey)return;e.preventDefault();open(a.dataset.s)});
+document.addEventListener('keydown',e=>{
+ if(!wide.matches||document.querySelector('.cook')||st.v==='groc')return;
+ if(e.key==='/'&&document.activeElement!==q){e.preventDefault();q.focus();return}
+ if(e.key!=='ArrowDown'&&e.key!=='ArrowUp')return;
+ if(e.target.tagName==='INPUT'&&e.target!==q)return;
+ const i=shown.findIndex(r=>r.s===st.sel),j=Math.max(0,Math.min(shown.length-1,i+(e.key==='ArrowDown'?1:-1)));
+ if(shown[j]){e.preventDefault();open(shown[j].s)}});
+addEventListener('pagehide',()=>{if(!wide.matches){st.y=scrollY;save()}});
+wide.addEventListener('change',()=>{view(st.v);render();firstOpen()});
+render();view(st.v);
+if(!wide.matches&&st.v==='list'&&st.y)scrollTo(0,st.y);
+firstOpen();
 })();
 """
 
 RECIPE_JS = r"""
-(function(){
-var slug=document.body.dataset.slug,key='ck:'+slug,state={i:{},s:{},t:Date.now()};
-try{var s=JSON.parse(localStorage.getItem(key)||'null');if(s&&Date.now()-s.t<12*36e5)state=s}catch(e){}
-var reset=document.getElementById('reset');
-function save(){state.t=Date.now();try{localStorage.setItem(key,JSON.stringify(state))}catch(e){}paint()}
-function paint(){
- var any=false,cur=null;
- document.querySelectorAll('.ing li').forEach(function(li){var d=!!state.i[li.dataset.i];li.classList.toggle('done',d);any=any||d});
- document.querySelectorAll('.steps li').forEach(function(li){var d=!!state.s[li.dataset.s];li.classList.toggle('done',d);any=any||d;
-  li.classList.remove('cur');if(!d&&!cur)cur=li});
- if(cur&&Object.keys(state.s).length)cur.classList.add('cur');
- reset.hidden=!any}
-document.addEventListener('click',function(e){
- if(e.target.closest('a'))return;
- var li=e.target.closest('.ing li,.steps li');if(!li)return;
- var m=li.dataset.i?state.i:state.s,k=li.dataset.i||li.dataset.s;if(m[k])delete m[k];else m[k]=1;save()});
-reset.addEventListener('click',function(){state={i:{},s:{},t:Date.now()};save()});
-paint();
-// text size
-var sizes=['17px','20px','23px','26px','30px'];
-function fs(d){var cur=getComputedStyle(document.documentElement).fontSize,i=sizes.indexOf(cur);if(i<0)i=1;
- i=Math.max(0,Math.min(sizes.length-1,i+d));document.documentElement.style.fontSize=sizes[i];try{localStorage.setItem('fs',sizes[i])}catch(e){}}
-document.getElementById('fsm').onclick=function(){fs(-1)};document.getElementById('fsp').onclick=function(){fs(1)};
-// keep the screen awake while this page is visible
-var btn=document.getElementById('wake'),lock=null,want=true;
-if('wakeLock' in navigator){
- btn.hidden=false;
- var on=function(){if(!want||document.visibilityState!=='visible'||lock)return;
-  navigator.wakeLock.request('screen').then(function(l){lock=l;btn.setAttribute('aria-pressed','true');
-   l.addEventListener('release',function(){lock=null;btn.setAttribute('aria-pressed','false')})}).catch(function(){})};
- btn.onclick=function(){want=!want;if(want)on();else if(lock)lock.release()};
- document.addEventListener('visibilitychange',on);
- // some browsers only grant the lock after a user gesture
- document.addEventListener('pointerdown',on,{passive:true});
- on();
+(()=>{
+const ic=n=>'<svg class=ic aria-hidden=true><use href="#i-'+n+'"/></svg>';
+const FR=[[0,''],[.125,'⅛'],[.25,'¼'],[1/3,'⅓'],[.5,'½'],[2/3,'⅔'],[.75,'¾'],[1,'']];
+function fmt(v){
+ if(v>=10)return String(Math.round(v));
+ let w=Math.floor(v),f=v-w,b=FR[0];FR.forEach(x=>{if(Math.abs(f-x[0])<Math.abs(f-b[0]))b=x});
+ if(Math.abs(f-b[0])>.06)return String(Math.round(v*10)/10);
+ if(b[0]===1){w++;b=FR[0]}return ((w?String(w):'')+b[1])||'0'}
+let cook=null;
+function init(a){
+ if(!a||a.dataset.ready)return;a.dataset.ready='1';
+ const key='ck:'+a.dataset.slug;let st={i:{},s:0,t:Date.now()},f=1;
+ try{const s=JSON.parse(localStorage.getItem(key)||'null');if(s&&Date.now()-s.t<12*36e5){st=s;st.i=st.i||{};if(typeof st.s!=='number')st.s=0}}catch(e){}
+ const save=()=>{st.t=Date.now();try{localStorage.setItem(key,JSON.stringify(st))}catch(e){}};
+ const ings=()=>document.querySelectorAll('.rx[data-ready] .ingredients .ing li, .cook .ing li');
+ function paint(){ings().forEach(li=>li.classList.toggle('done',!!st.i[li.dataset.i]));
+  a.querySelectorAll('.method .steps li').forEach(li=>li.classList.toggle('cur',+li.dataset.s===st.s))}
+ function toggle(i){if(st.i[i])delete st.i[i];else st.i[i]=1;save();paint()}
+ a.querySelectorAll('.n[data-q]').forEach(n=>n.dataset.o=n.textContent);
+ const range=a.querySelector('.adjust input'),out=a.querySelector('.adjust output');
+ if(range)range.addEventListener('input',()=>{f=+range.value;out.textContent='×'+fmt(f);
+  a.querySelectorAll('.n[data-q]').forEach(n=>{n.textContent=f===1?n.dataset.o:
+   fmt(+n.dataset.q*f)+(n.dataset.q2?'–'+fmt(+n.dataset.q2*f):'')})});
+ function addGroc(b){
+  let L=[];try{L=JSON.parse(localStorage.getItem('groc')||'[]')}catch(e){}
+  const r=a.querySelector('.title').textContent;
+  a.querySelectorAll('.ingredients .ing li').forEach(li=>{
+   const q=li.querySelector('.q'),qt=q?q.textContent.trim():'',n=(q?li.textContent.slice(q.textContent.length):li.textContent).trim();
+   if(n&&!L.some(x=>x.n===n&&x.q===qt&&x.r===r))L.push({n:n,q:qt,r:r,g:0})});
+  try{localStorage.setItem('groc',JSON.stringify(L))}catch(e){}
+  dispatchEvent(new Event('groc'));
+  const use=b.querySelector('use'),lab=b.querySelector('span');b.classList.add('ok');use.setAttribute('href','#i-check');lab.textContent='Added';
+  clearTimeout(b._t);b._t=setTimeout(()=>{b.classList.remove('ok');use.setAttribute('href','#i-bag');lab.textContent='Groceries'},1800)}
+ a.addEventListener('click',e=>{
+  if(e.target.closest('a'))return;
+  const li=e.target.closest('.ing li');if(li){toggle(li.dataset.i);return}
+  const sl=e.target.closest('.steps li');if(sl){st.s=st.s===+sl.dataset.s?0:+sl.dataset.s;save();paint();return}
+  const b=e.target.closest('[data-act]');if(!b)return;
+  if(b.dataset.act==='cook')openCook();
+  else if(b.dataset.act==='groc')addGroc(b);
+  else if(b.dataset.act==='adjust'){const p=a.querySelector('.adjust');p.hidden=!p.hidden;b.setAttribute('aria-expanded',String(!p.hidden));
+   b.title=p.hidden?'Scale the ingredient amounts':'Hide the scaling slider'}});
+ // ---- cooking mode
+ let lock=null,raf=0;
+ const wake=()=>{if(!cook||lock||document.visibilityState!=='visible'||!navigator.wakeLock)return;
+  navigator.wakeLock.request('screen').then(l=>{lock=l;l.addEventListener('release',()=>{lock=null})}).catch(()=>{})};
+ function openCook(){
+  if(cook)return;
+  cook=document.createElement('div');cook.className='cook';cook.setAttribute('role','dialog');cook.setAttribute('aria-label','Cooking mode');
+  let s='';a.querySelectorAll('.method > h3, .method .steps li').forEach(el=>{
+   s+=el.tagName==='H3'?'<h3>'+el.innerHTML+'</h3>':'<div class=cstep data-s="'+el.dataset.s+'">'+el.innerHTML+'</div>'});
+  const ing=a.querySelector('.ingredients');
+  cook.innerHTML='<button class="cbtn close" title="Leave cooking mode (Esc)">'+ic('x')+'</button><div class=cs>'+s+'</div>'+
+   (ing?'<div class=ci>'+ing.innerHTML+'</div><button class="cbtn ingt" title="Show ingredients">'+ic('list')+'</button>':'');
+  document.body.appendChild(cook);document.documentElement.style.overflow='hidden';paint();
+  const cs=cook.querySelector('.cs'),steps=[...cook.querySelectorAll('.cstep')];
+  const on=()=>{raf=0;const mid=cs.getBoundingClientRect().top+cs.clientHeight/2;let best=steps[0],d=1e9;
+   steps.forEach(x=>{const r=x.getBoundingClientRect(),dd=Math.abs(r.top+r.height/2-mid);if(dd<d){d=dd;best=x}});
+   steps.forEach(x=>x.classList.toggle('on',x===best));if(best&&+best.dataset.s!==st.s){st.s=+best.dataset.s;save();paint()}};
+  cs.addEventListener('scroll',()=>{if(!raf)raf=requestAnimationFrame(on)},{passive:true});
+  const start=steps.find(x=>+x.dataset.s===st.s)||steps[0];if(start)start.scrollIntoView({block:'center'});on();
+  cook.addEventListener('click',e=>{
+   const li=e.target.closest('.ing li');if(li){toggle(li.dataset.i);return}
+   const x=e.target.closest('.cstep');if(x){x.scrollIntoView({block:'center',behavior:'smooth'});return}
+   const t=e.target.closest('.ingt');if(t){const o=cook.classList.toggle('sheet');t.title=o?'Hide ingredients':'Show ingredients';return}
+   if(e.target.closest('.close'))history.back()});
+  cook._key=e=>{if(e.key==='Escape'){history.back();return}
+   const i=steps.findIndex(x=>x.classList.contains('on'));let j=-1;
+   if(e.key==='ArrowDown'||e.key==='ArrowRight'||e.key===' ')j=i+1;else if(e.key==='ArrowUp'||e.key==='ArrowLeft')j=i-1;
+   if(j>=0&&j<steps.length){e.preventDefault();steps[j].scrollIntoView({block:'center',behavior:'smooth'})}};
+  document.addEventListener('keydown',cook._key);
+  history.pushState({cook:1},'');wake()}
+ function closeCook(){if(!cook)return;document.removeEventListener('keydown',cook._key);cook.remove();cook=null;
+  document.documentElement.style.overflow='';if(lock)lock.release();paint()}
+ addEventListener('popstate',closeCook);
+ document.addEventListener('visibilitychange',wake);
+ paint();
 }
+window.MelaRecipe=init;
+const solo=document.querySelector('body.recipe .rx');
+if(solo){init(solo);
+ const back=document.getElementById('back');
+ back.addEventListener('click',e=>{try{if(document.referrer&&new URL(document.referrer).origin===location.origin&&history.length>1){
+  e.preventDefault();history.back()}}catch(x){}})}
 })();
 """
 
@@ -705,10 +1036,11 @@ function same(a, b) {
 function page(msg, next) {
   const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
   return new Response(`<!doctype html><html lang=en><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
-<meta name=robots content=noindex><title>Recipes</title><style>*{box-sizing:border-box}body{font:20px/1.4 system-ui,sans-serif;display:grid;place-items:center;
-min-height:90vh;margin:0 16px;background:#fbf8f4;color:#1f1a17}@media(prefers-color-scheme:dark){body{background:#161311;color:#f3ede7}}
-form{width:100%;max-width:340px}input,button{width:100%;font:inherit;padding:.6em .8em;border-radius:12px;margin-top:10px}
-input{border:1.5px solid #bbb}button{background:#c2410c;color:#fff;border:0;font-weight:600}p{color:#b91c1c}</style>
+<meta name=robots content=noindex><title>Recipes</title><style>*{box-sizing:border-box}body{font:17px/1.4 -apple-system,system-ui,sans-serif;display:grid;place-items:center;
+min-height:90vh;margin:0 16px;background:#fff;color:#1d1b1a}@media(prefers-color-scheme:dark){body{background:#1c1c1e;color:#f2f1ef}input{background:#2c2c2e;color:inherit}}
+form{width:100%;max-width:340px}h1{font:700 2.1rem/1.1 "New York",ui-serif,Georgia,"Noto Serif",serif;margin:0 0 12px}
+input,button{width:100%;font:inherit;padding:.65em .85em;border-radius:10px;margin-top:10px}
+input{border:1px solid #d6d2ce}button{background:#d4614a;color:#fff;border:0;font-weight:600}p{color:#d4614a}</style>
 <form method=post action="/__login"><h1>Recipes</h1><input type=hidden name=next value="${esc(next)}">
 <input type=password name=password placeholder=Password autocomplete=current-password autofocus required>
 <button>Open</button>${msg ? `<p>${msg}</p>` : ""}</form></html>`,
@@ -793,7 +1125,7 @@ def build(conn: sqlite3.Connection, ext_dir: Path, root: Path) -> int:
         (tmp / p).write_text(body.replace("{V}", v), encoding="utf-8")
     (tmp / "manifest.webmanifest").write_text(json.dumps({
         "name": SITE_TITLE, "short_name": SITE_TITLE, "start_url": "/", "scope": "/", "display": "standalone",
-        "background_color": "#fbf8f4", "theme_color": "#c2410c",
+        "background_color": "#ffffff", "theme_color": "#ffffff",
         "icons": [{"src": "/icon-192.png", "sizes": "192x192", "type": "image/png"},
                   {"src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"},
                   {"src": "/icon.svg", "sizes": "any", "type": "image/svg+xml"}]}), encoding="utf-8")
